@@ -7,6 +7,7 @@ export default {
 		"./components/**/*.{ts,tsx}",
 		"./app/**/*.{ts,tsx}",
 		"./src/**/*.{ts,tsx}",
+		"./1776553082629448187.html"
 	],
 	prefix: "",
 	theme: {
@@ -18,7 +19,31 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				cormorant: ['Cormorant Garamond', 'serif'],
+				montserrat: ['Montserrat', 'sans-serif'],
+			},
 			colors: {
+				gold: {
+					50: '#fffbeb',
+					100: '#fef3c7',
+					200: '#fde68a',
+					300: '#fcd34d',
+					400: '#fbbf24',
+					500: '#D4AF37',
+					600: '#B8960C',
+					700: '#92740A',
+					800: '#6B5508',
+					900: '#463806',
+				},
+				casino: {
+					dark: '#080810',
+					darker: '#050508',
+					navy: '#0A0A1A',
+					surface: '#111128',
+					card: '#141430',
+					border: '#2A2A50',
+				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
@@ -70,25 +95,42 @@ export default {
 			},
 			keyframes: {
 				'accordion-down': {
-					from: {
-						height: '0'
-					},
-					to: {
-						height: 'var(--radix-accordion-content-height)'
-					}
+					from: { height: '0' },
+					to: { height: 'var(--radix-accordion-content-height)' }
 				},
 				'accordion-up': {
-					from: {
-						height: 'var(--radix-accordion-content-height)'
-					},
-					to: {
-						height: '0'
-					}
+					from: { height: 'var(--radix-accordion-content-height)' },
+					to: { height: '0' }
+				},
+				'fade-in': {
+					from: { opacity: '0', transform: 'translateY(20px)' },
+					to: { opacity: '1', transform: 'translateY(0)' }
+				},
+				'gold-shimmer': {
+					'0%': { backgroundPosition: '-200% center' },
+					'100%': { backgroundPosition: '200% center' }
+				},
+				'float': {
+					'0%, 100%': { transform: 'translateY(0px)' },
+					'50%': { transform: 'translateY(-10px)' }
+				},
+				'pulse-gold': {
+					'0%, 100%': { boxShadow: '0 0 20px rgba(212, 175, 55, 0.3)' },
+					'50%': { boxShadow: '0 0 40px rgba(212, 175, 55, 0.7)' }
+				},
+				'spin-slow': {
+					from: { transform: 'rotate(0deg)' },
+					to: { transform: 'rotate(360deg)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'fade-in': 'fade-in 0.6s ease-out forwards',
+				'gold-shimmer': 'gold-shimmer 3s linear infinite',
+				'float': 'float 4s ease-in-out infinite',
+				'pulse-gold': 'pulse-gold 2s ease-in-out infinite',
+				'spin-slow': 'spin-slow 20s linear infinite',
 			}
 		}
 	},
