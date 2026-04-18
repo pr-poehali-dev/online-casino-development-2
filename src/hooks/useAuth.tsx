@@ -20,6 +20,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<string | null>;
   register: (email: string, username: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
+  updateBalance: (newBalance: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -64,6 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   };
 
+  const updateBalance = (newBalance: number) => {
+    setUser(prev => prev ? { ...prev, balance: newBalance } : null);
+  };
+
   const logout = async () => {
     const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
@@ -78,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateBalance }}>
       {children}
     </AuthContext.Provider>
   );

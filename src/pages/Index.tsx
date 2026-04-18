@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { useAuth } from "@/hooks/useAuth";
+import { useWallet, Transaction } from "@/hooks/useWallet";
 
 const NAV_ITEMS = [
   { label: "Главная", id: "home" },
@@ -88,7 +89,39 @@ export default function Index() {
   const [authLoading, setAuthLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { user, login, register, logout } = useAuth();
+  const { user, login, register, logout, updateBalance } = useAuth();
+  const { deposit, withdraw, fetchHistory, transactions, loading: walletLoading, error: walletError, setError: setWalletError } = useWallet();
+
+  const [walletModal, setWalletModal] = useState<"deposit" | "withdraw" | "history" | null>(null);
+  const [walletAmount, setWalletAmount] = useState("");
+  const [walletMethod, setWalletMethod] = useState("card");
+  const [walletSuccess, setWalletSuccess] = useState("");
+
+  const openWallet = (mode: "deposit" | "withdraw" | "history") => {
+    setWalletModal(mode);
+    setWalletAmount("");
+    setWalletSuccess("");
+    setWalletError("");
+    if (mode === "history") fetchHistory();
+  };
+
+  const closeWallet = () => { setWalletModal(null); setWalletSuccess(""); setWalletError(""); };
+
+  const handleWallet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(walletAmount);
+    if (!amount || amount <= 0) return;
+    const fn = walletModal === "deposit" ? deposit : withdraw;
+    const { data, error } = await fn(amount, walletMethod);
+    if (error) return;
+    if (data?.balance !== undefined) updateBalance(data.balance as number);
+    setWalletSuccess(
+      walletModal === "deposit"
+        ? `Баланс пополнен на ${amount.toLocaleString()} ₽`
+        : `Заявка на вывод ${amount.toLocaleString()} ₽ принята`
+    );
+    setWalletAmount("");
+  };
 
   const scrollTo = (id: string) => {
     setActiveSection(id);
@@ -555,9 +588,10 @@ export default function Index() {
                       </button>
                     </div>
                   </div>
+                  {/* Stats grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
-                      { label: "Баланс", value: `${user.balance.toLocaleString()} ₽`, icon: "Wallet" },
+                      { label: "Баланс", value: `${user.balance.toLocaleString('ru-RU', { minimumFractionDigits: 0 })} ₽`, icon: "Wallet" },
                       { label: "Очки лояльности", value: user.loyalty_points.toLocaleString(), icon: "Star" },
                       { label: "Фриспины", value: user.freespins.toString(), icon: "Zap" },
                       { label: "Уровень", value: user.loyalty_level, icon: "Award" },
@@ -571,14 +605,43 @@ export default function Index() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Wallet actions */}
+                  <div className="mt-6 grid grid-cols-3 gap-3">
+                    <button
+                      onClick={() => openWallet("deposit")}
+                      className="flex items-center justify-center gap-2 py-3 text-xs font-bold tracking-widest uppercase bg-gradient-to-r from-gold-700 to-gold-500 text-casino-darker rounded-xl hover:shadow-lg hover:shadow-gold-600/30 transition-all duration-300"
+                    >
+                      <Icon name="Plus" size={14} />
+                      Пополнить
+                    </button>
+                    <button
+                      onClick={() => openWallet("withdraw")}
+                      className="flex items-center justify-center gap-2 py-3 text-xs font-bold tracking-widest uppercase text-white/70 border border-white/10 rounded-xl hover:border-gold-600/40 hover:text-gold-400 transition-all duration-300"
+                    >
+                      <Icon name="ArrowUpRight" size={14} />
+                      Вывести
+                    </button>
+                    <button
+                      onClick={() => openWallet("history")}
+                      className="flex items-center justify-center gap-2 py-3 text-xs font-bold tracking-widest uppercase text-white/70 border border-white/10 rounded-xl hover:border-gold-600/40 hover:text-gold-400 transition-all duration-300"
+                    >
+                      <Icon name="Clock" size={14} />
+                      История
+                    </button>
+                  </div>
+
                   {!user.welcome_bonus_claimed && (
-                    <div className="mt-6 p-4 rounded-xl bg-gold-600/10 border border-gold-600/30 flex items-center justify-between gap-4">
+                    <div className="mt-4 p-4 rounded-xl bg-gold-600/10 border border-gold-600/30 flex items-center justify-between gap-4">
                       <div>
                         <p className="text-gold-400 font-semibold text-sm">🎁 Ваш приветственный бонус ждёт!</p>
                         <p className="text-white/50 text-xs mt-1">+200% к первому депозиту и {user.freespins} фриспинов</p>
                       </div>
-                      <button className="shrink-0 px-5 py-2 text-xs font-bold tracking-widest uppercase bg-gradient-to-r from-gold-600 to-gold-400 text-casino-darker rounded hover:shadow-lg transition-all duration-300">
-                        Получить
+                      <button
+                        onClick={() => openWallet("deposit")}
+                        className="shrink-0 px-5 py-2 text-xs font-bold tracking-widest uppercase bg-gradient-to-r from-gold-600 to-gold-400 text-casino-darker rounded hover:shadow-lg transition-all duration-300"
+                      >
+                        Пополнить
                       </button>
                     </div>
                   )}
@@ -883,6 +946,201 @@ export default function Index() {
                   {authModal === "login" ? "Зарегистрироваться" : "Войти"}
                 </button>
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ─── WALLET MODAL ─── */}
+      {walletModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) closeWallet(); }}
+        >
+          <div className="absolute inset-0 bg-casino-darker/90 backdrop-blur-md" />
+
+          <div className="relative w-full max-w-md bg-casino-card border border-gold-600/30 rounded-2xl overflow-hidden shadow-2xl shadow-black/60 animate-fade-in">
+            <div className="h-px w-full bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
+
+            <div className="p-8">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="font-cormorant text-3xl font-semibold text-white">
+                    {walletModal === "deposit" && "Пополнение"}
+                    {walletModal === "withdraw" && "Вывод средств"}
+                    {walletModal === "history" && "История операций"}
+                  </h2>
+                  {user && walletModal !== "history" && (
+                    <p className="text-white/40 text-sm mt-1">
+                      Текущий баланс: <span className="text-gold-400 font-semibold">{user.balance.toLocaleString('ru-RU')} ₽</span>
+                    </p>
+                  )}
+                </div>
+                <button onClick={closeWallet} className="text-white/30 hover:text-white transition-colors">
+                  <Icon name="X" size={20} />
+                </button>
+              </div>
+
+              {/* HISTORY */}
+              {walletModal === "history" && (
+                <div>
+                  {walletLoading ? (
+                    <div className="text-center py-10 text-white/30 text-sm">Загрузка...</div>
+                  ) : transactions.length === 0 ? (
+                    <div className="text-center py-10">
+                      <div className="text-4xl mb-3">📋</div>
+                      <p className="text-white/30 text-sm">Операций пока нет</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                      {transactions.map((t: Transaction) => (
+                        <div key={t.id} className="flex items-center justify-between p-3 bg-casino-surface rounded-xl border border-white/5">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              t.type === "deposit" ? "bg-green-500/20" : t.type === "withdraw" ? "bg-red-500/20" : "bg-gold-500/20"
+                            }`}>
+                              <Icon
+                                name={t.type === "deposit" ? "ArrowDownLeft" : t.type === "withdraw" ? "ArrowUpRight" : "Gift"}
+                                fallback="Wallet"
+                                size={14}
+                                className={t.type === "deposit" ? "text-green-400" : t.type === "withdraw" ? "text-red-400" : "text-gold-400"}
+                              />
+                            </div>
+                            <div>
+                              <div className="text-white text-sm font-medium">
+                                {t.type === "deposit" ? "Пополнение" : t.type === "withdraw" ? "Вывод" : "Бонус"}
+                              </div>
+                              <div className="text-white/30 text-xs">
+                                {new Date(t.created_at).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`font-cormorant text-lg font-semibold ${
+                              t.type === "deposit" || t.type === "bonus" ? "text-green-400" : "text-red-400"
+                            }`}>
+                              {t.type === "withdraw" ? "−" : "+"}{t.amount.toLocaleString("ru-RU")} ₽
+                            </div>
+                            <div className={`text-xs ${t.status === "completed" ? "text-green-500/60" : t.status === "pending" ? "text-gold-500/60" : "text-red-500/60"}`}>
+                              {t.status === "completed" ? "Выполнено" : t.status === "pending" ? "В обработке" : "Отклонено"}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* DEPOSIT / WITHDRAW */}
+              {(walletModal === "deposit" || walletModal === "withdraw") && (
+                <form onSubmit={handleWallet} className="space-y-4">
+                  {/* Quick amounts */}
+                  <div>
+                    <label className="text-white/50 text-xs tracking-widest uppercase mb-3 block">
+                      {walletModal === "deposit" ? "Быстрый выбор суммы" : "Сумма вывода"}
+                    </label>
+                    {walletModal === "deposit" && (
+                      <div className="grid grid-cols-4 gap-2 mb-3">
+                        {[1000, 5000, 10000, 50000].map(v => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => setWalletAmount(v.toString())}
+                            className={`py-2 text-xs font-bold rounded-lg border transition-all duration-200 ${
+                              walletAmount === v.toString()
+                                ? "border-gold-500 bg-gold-600/20 text-gold-400"
+                                : "border-white/10 text-white/50 hover:border-gold-600/40 hover:text-gold-400"
+                            }`}
+                          >
+                            {v.toLocaleString()}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={walletAmount}
+                        onChange={e => setWalletAmount(e.target.value)}
+                        placeholder={walletModal === "deposit" ? "Минимум 100 ₽" : "Минимум 500 ₽"}
+                        min={walletModal === "deposit" ? 100 : 500}
+                        required
+                        className="w-full bg-casino-surface border border-casino-border rounded-lg px-4 py-3 pr-10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-gold-500/60 transition-colors"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gold-500 text-sm font-bold">₽</span>
+                    </div>
+                  </div>
+
+                  {/* Method */}
+                  <div>
+                    <label className="text-white/50 text-xs tracking-widest uppercase mb-3 block">Способ</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: "card", label: "Карта", icon: "CreditCard" },
+                        { id: "crypto", label: "Крипто", icon: "Bitcoin" },
+                        { id: "sbp", label: "СБП", icon: "Smartphone" },
+                      ].map(m => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setWalletMethod(m.id)}
+                          className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-semibold transition-all duration-200 ${
+                            walletMethod === m.id
+                              ? "border-gold-500 bg-gold-600/15 text-gold-400"
+                              : "border-white/10 text-white/40 hover:border-white/20 hover:text-white/70"
+                          }`}
+                        >
+                          <Icon name={m.icon} fallback="CreditCard" size={16} />
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Withdraw warning */}
+                  {walletModal === "withdraw" && user && (
+                    <div className="p-3 rounded-lg bg-white/5 border border-white/5 text-white/40 text-xs leading-relaxed">
+                      Доступно к выводу: <span className="text-white font-semibold">{user.balance.toLocaleString('ru-RU')} ₽</span>. Обработка 15–60 мин.
+                    </div>
+                  )}
+
+                  {/* Error */}
+                  {walletError && (
+                    <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                      {walletError}
+                    </div>
+                  )}
+
+                  {/* Success */}
+                  {walletSuccess && (
+                    <div className="px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm flex items-center gap-2">
+                      <Icon name="CheckCircle" size={16} />
+                      {walletSuccess}
+                    </div>
+                  )}
+
+                  {/* Deposit bonus badge */}
+                  {walletModal === "deposit" && user && !user.welcome_bonus_claimed && parseFloat(walletAmount) >= 1000 && (
+                    <div className="px-4 py-3 rounded-lg bg-gold-600/10 border border-gold-600/20 text-gold-400 text-xs flex items-center gap-2">
+                      🎁 Первый депозит — получите +200% бонус!
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={walletLoading || !walletAmount}
+                    className="w-full py-3.5 text-sm font-bold tracking-widest uppercase bg-gradient-to-r from-gold-700 to-gold-400 text-casino-darker rounded-lg hover:shadow-xl hover:shadow-gold-600/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {walletLoading
+                      ? "Обработка..."
+                      : walletModal === "deposit"
+                      ? `Пополнить${walletAmount ? ` ${parseFloat(walletAmount).toLocaleString('ru-RU')} ₽` : ""}`
+                      : `Вывести${walletAmount ? ` ${parseFloat(walletAmount).toLocaleString('ru-RU')} ₽` : ""}`
+                    }
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>

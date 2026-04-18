@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "No token returns 401",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "history"},
+      "expectedStatus": 401,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
