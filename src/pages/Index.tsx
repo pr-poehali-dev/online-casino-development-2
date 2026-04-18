@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import { useAuth } from "@/hooks/useAuth";
 
 const NAV_ITEMS = [
   { label: "Главная", id: "home" },
@@ -81,12 +82,43 @@ export default function Index() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [loyaltyActive, setLoyaltyActive] = useState(2);
+  const [authModal, setAuthModal] = useState<"login" | "register" | null>(null);
+  const [authForm, setAuthForm] = useState({ email: "", username: "", password: "" });
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const { user, login, register, logout } = useAuth();
 
   const scrollTo = (id: string) => {
     setActiveSection(id);
     setMobileOpen(false);
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const openAuth = (mode: "login" | "register") => {
+    setAuthModal(mode);
+    setAuthForm({ email: "", username: "", password: "" });
+    setAuthError("");
+    setShowPassword(false);
+  };
+
+  const closeAuth = () => { setAuthModal(null); setAuthError(""); };
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError("");
+    let err: string | null = null;
+    if (authModal === "login") {
+      err = await login(authForm.email, authForm.password);
+    } else {
+      err = await register(authForm.email, authForm.username, authForm.password);
+    }
+    setAuthLoading(false);
+    if (err) { setAuthError(err); return; }
+    closeAuth();
   };
 
   return (
@@ -123,12 +155,38 @@ export default function Index() {
           </nav>
 
           <div className="hidden lg:flex items-center gap-3">
-            <button className="px-4 py-2 text-xs font-semibold tracking-widest uppercase text-gold-400 border border-gold-600/40 rounded hover:border-gold-400 hover:bg-gold-600/10 transition-all duration-300">
-              Войти
-            </button>
-            <button className="px-5 py-2 text-xs font-bold tracking-widest uppercase bg-gradient-to-r from-gold-600 to-gold-400 text-casino-darker rounded hover:shadow-lg hover:shadow-gold-600/30 transition-all duration-300">
-              Регистрация
-            </button>
+            {user ? (
+              <>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gold-600/30 bg-gold-600/5">
+                  <span className="text-base">👑</span>
+                  <div>
+                    <div className="text-gold-400 text-xs font-bold leading-none">{user.username}</div>
+                    <div className="text-white/40 text-xs leading-none mt-0.5">{user.loyalty_level}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={logout}
+                  className="px-4 py-2 text-xs font-semibold tracking-widest uppercase text-white/50 border border-white/10 rounded hover:border-red-500/40 hover:text-red-400 transition-all duration-300"
+                >
+                  Выйти
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => openAuth("login")}
+                  className="px-4 py-2 text-xs font-semibold tracking-widest uppercase text-gold-400 border border-gold-600/40 rounded hover:border-gold-400 hover:bg-gold-600/10 transition-all duration-300"
+                >
+                  Войти
+                </button>
+                <button
+                  onClick={() => openAuth("register")}
+                  className="px-5 py-2 text-xs font-bold tracking-widest uppercase bg-gradient-to-r from-gold-600 to-gold-400 text-casino-darker rounded hover:shadow-lg hover:shadow-gold-600/30 transition-all duration-300"
+                >
+                  Регистрация
+                </button>
+              </>
+            )}
           </div>
 
           <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden text-gold-400">
@@ -147,10 +205,17 @@ export default function Index() {
                 {item.label}
               </button>
             ))}
-            <div className="flex gap-3 mt-3">
-              <button className="flex-1 py-2 text-xs font-semibold text-gold-400 border border-gold-600/40 rounded">Войти</button>
-              <button className="flex-1 py-2 text-xs font-bold bg-gradient-to-r from-gold-600 to-gold-400 text-casino-darker rounded">Регистрация</button>
-            </div>
+            {user ? (
+              <div className="flex items-center justify-between mt-3 px-1">
+                <span className="text-gold-400 text-sm font-semibold">👑 {user.username}</span>
+                <button onClick={logout} className="text-white/40 text-xs hover:text-red-400 transition-colors">Выйти</button>
+              </div>
+            ) : (
+              <div className="flex gap-3 mt-3">
+                <button onClick={() => openAuth("login")} className="flex-1 py-2 text-xs font-semibold text-gold-400 border border-gold-600/40 rounded">Войти</button>
+                <button onClick={() => openAuth("register")} className="flex-1 py-2 text-xs font-bold bg-gradient-to-r from-gold-600 to-gold-400 text-casino-darker rounded">Регистрация</button>
+              </div>
+            )}
           </div>
         )}
       </header>
@@ -474,32 +539,82 @@ export default function Index() {
             </div>
 
             <div className="pt-14 px-8 pb-8">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-                <div>
-                  <h3 className="font-cormorant text-3xl font-semibold text-white">Гость</h3>
-                  <p className="text-white/40 text-sm mt-1">Зарегистрируйтесь для доступа к профилю</p>
-                </div>
-                <button className="px-8 py-3 text-sm font-bold tracking-widest uppercase bg-gradient-to-r from-gold-700 to-gold-500 text-casino-darker rounded hover:shadow-lg hover:shadow-gold-600/30 transition-all duration-300">
-                  Создать Аккаунт
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: "Баланс", value: "—", icon: "Wallet" },
-                  { label: "Очки лояльности", value: "—", icon: "Star" },
-                  { label: "Фриспины", value: "—", icon: "Zap" },
-                  { label: "Уровень", value: "Bronze", icon: "Award" },
-                ].map((item) => (
-                  <div key={item.label} className="bg-casino-surface rounded-xl p-4 border border-white/5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Icon name={item.icon} fallback="Star" size={14} className="text-gold-500" />
-                      <span className="text-white/40 text-xs tracking-wider">{item.label}</span>
+              {user ? (
+                <>
+                  <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+                    <div>
+                      <h3 className="font-cormorant text-3xl font-semibold text-white">{user.username}</h3>
+                      <p className="text-white/40 text-sm mt-1">{user.email}</p>
                     </div>
-                    <div className="font-cormorant text-2xl text-white">{item.value}</div>
+                    <div className="flex gap-3">
+                      <div className="px-4 py-2 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-semibold">
+                        ● Активен
+                      </div>
+                      <button onClick={logout} className="px-4 py-2 text-xs font-semibold tracking-widest uppercase text-white/40 border border-white/10 rounded hover:text-red-400 hover:border-red-500/30 transition-all duration-300">
+                        Выйти
+                      </button>
+                    </div>
                   </div>
-                ))}
-              </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { label: "Баланс", value: `${user.balance.toLocaleString()} ₽`, icon: "Wallet" },
+                      { label: "Очки лояльности", value: user.loyalty_points.toLocaleString(), icon: "Star" },
+                      { label: "Фриспины", value: user.freespins.toString(), icon: "Zap" },
+                      { label: "Уровень", value: user.loyalty_level, icon: "Award" },
+                    ].map((item) => (
+                      <div key={item.label} className="bg-casino-surface rounded-xl p-4 border border-white/5 hover:border-gold-600/20 transition-colors">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Icon name={item.icon} fallback="Star" size={14} className="text-gold-500" />
+                          <span className="text-white/40 text-xs tracking-wider">{item.label}</span>
+                        </div>
+                        <div className="font-cormorant text-2xl text-gold-300">{item.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {!user.welcome_bonus_claimed && (
+                    <div className="mt-6 p-4 rounded-xl bg-gold-600/10 border border-gold-600/30 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-gold-400 font-semibold text-sm">🎁 Ваш приветственный бонус ждёт!</p>
+                        <p className="text-white/50 text-xs mt-1">+200% к первому депозиту и {user.freespins} фриспинов</p>
+                      </div>
+                      <button className="shrink-0 px-5 py-2 text-xs font-bold tracking-widest uppercase bg-gradient-to-r from-gold-600 to-gold-400 text-casino-darker rounded hover:shadow-lg transition-all duration-300">
+                        Получить
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+                    <div>
+                      <h3 className="font-cormorant text-3xl font-semibold text-white">Гость</h3>
+                      <p className="text-white/40 text-sm mt-1">Зарегистрируйтесь для доступа к профилю</p>
+                    </div>
+                    <button
+                      onClick={() => openAuth("register")}
+                      className="px-8 py-3 text-sm font-bold tracking-widest uppercase bg-gradient-to-r from-gold-700 to-gold-500 text-casino-darker rounded hover:shadow-lg hover:shadow-gold-600/30 transition-all duration-300"
+                    >
+                      Создать Аккаунт
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { label: "Баланс", value: "—", icon: "Wallet" },
+                      { label: "Очки лояльности", value: "—", icon: "Star" },
+                      { label: "Фриспины", value: "—", icon: "Zap" },
+                      { label: "Уровень", value: "—", icon: "Award" },
+                    ].map((item) => (
+                      <div key={item.label} className="bg-casino-surface rounded-xl p-4 border border-white/5">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Icon name={item.icon} fallback="Star" size={14} className="text-gold-500" />
+                          <span className="text-white/40 text-xs tracking-wider">{item.label}</span>
+                        </div>
+                        <div className="font-cormorant text-2xl text-white">{item.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -642,6 +757,136 @@ export default function Index() {
           </div>
         </div>
       </footer>
+
+      {/* ─── AUTH MODAL ─── */}
+      {authModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) closeAuth(); }}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-casino-darker/90 backdrop-blur-md" />
+
+          {/* Modal */}
+          <div className="relative w-full max-w-md bg-casino-card border border-gold-600/30 rounded-2xl overflow-hidden shadow-2xl shadow-black/60 animate-fade-in">
+            {/* Top gold line */}
+            <div className="h-px w-full bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
+
+            <div className="p-8">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xl">♛</span>
+                    <span className="font-cormorant text-sm font-bold tracking-widest text-gold-400 uppercase">Grand Royal</span>
+                  </div>
+                  <h2 className="font-cormorant text-3xl font-semibold text-white">
+                    {authModal === "login" ? "Добро пожаловать" : "Создать аккаунт"}
+                  </h2>
+                  <p className="text-white/40 text-sm mt-1">
+                    {authModal === "login" ? "Войдите в ваш аккаунт" : "Регистрация займёт 30 секунд"}
+                  </p>
+                </div>
+                <button onClick={closeAuth} className="text-white/30 hover:text-white transition-colors">
+                  <Icon name="X" size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleAuth} className="space-y-4">
+                {/* Email */}
+                <div>
+                  <label className="text-white/50 text-xs tracking-widest uppercase mb-2 block">Email</label>
+                  <input
+                    type="email"
+                    value={authForm.email}
+                    onChange={e => setAuthForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="your@email.com"
+                    required
+                    className="w-full bg-casino-surface border border-casino-border rounded-lg px-4 py-3 text-white text-sm placeholder-white/20 focus:outline-none focus:border-gold-500/60 transition-colors"
+                  />
+                </div>
+
+                {/* Username (register only) */}
+                {authModal === "register" && (
+                  <div>
+                    <label className="text-white/50 text-xs tracking-widest uppercase mb-2 block">Имя пользователя</label>
+                    <input
+                      type="text"
+                      value={authForm.username}
+                      onChange={e => setAuthForm(f => ({ ...f, username: e.target.value }))}
+                      placeholder="ваш_никнейм"
+                      required
+                      minLength={3}
+                      className="w-full bg-casino-surface border border-casino-border rounded-lg px-4 py-3 text-white text-sm placeholder-white/20 focus:outline-none focus:border-gold-500/60 transition-colors"
+                    />
+                  </div>
+                )}
+
+                {/* Password */}
+                <div>
+                  <label className="text-white/50 text-xs tracking-widest uppercase mb-2 block">Пароль</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={authForm.password}
+                      onChange={e => setAuthForm(f => ({ ...f, password: e.target.value }))}
+                      placeholder="минимум 6 символов"
+                      required
+                      minLength={6}
+                      className="w-full bg-casino-surface border border-casino-border rounded-lg px-4 py-3 pr-10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-gold-500/60 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors"
+                    >
+                      <Icon name={showPassword ? "EyeOff" : "Eye"} size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Error */}
+                {authError && (
+                  <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                    {authError}
+                  </div>
+                )}
+
+                {/* Bonus badge (register) */}
+                {authModal === "register" && (
+                  <div className="px-4 py-3 rounded-lg bg-gold-600/10 border border-gold-600/20 flex items-center gap-3">
+                    <span className="text-xl">🎁</span>
+                    <div>
+                      <p className="text-gold-400 text-xs font-bold">Бонус новичка</p>
+                      <p className="text-white/50 text-xs">+200% к первому депозиту и 200 фриспинов</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full py-3.5 text-sm font-bold tracking-widest uppercase bg-gradient-to-r from-gold-700 to-gold-400 text-casino-darker rounded-lg hover:shadow-xl hover:shadow-gold-600/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                >
+                  {authLoading ? "Загрузка..." : authModal === "login" ? "Войти" : "Создать аккаунт"}
+                </button>
+              </form>
+
+              {/* Switch mode */}
+              <p className="text-center text-white/40 text-sm mt-6">
+                {authModal === "login" ? "Нет аккаунта? " : "Уже есть аккаунт? "}
+                <button
+                  onClick={() => { setAuthModal(authModal === "login" ? "register" : "login"); setAuthError(""); }}
+                  className="text-gold-400 hover:text-gold-300 font-semibold transition-colors"
+                >
+                  {authModal === "login" ? "Зарегистрироваться" : "Войти"}
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
